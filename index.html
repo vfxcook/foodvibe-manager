@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoodVibe Manager</title>
+<link rel="icon" type="image/png" href="assets/app_icon.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ======================= sign-in gate ======================= -->
+<section id="view-auth" class="auth-wrap">
+  <div class="auth-card">
+    <img src="assets/app_icon.png" alt="FoodVibe" class="auth-logo">
+    <h1>FoodVibe <span class="accent">Manager</span></h1>
+    <p class="muted">Team dashboard. Sign in with an approved admin email.</p>
+
+    <button id="btn-google" class="btn btn-google">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.2H12v4.1h6.5c-.1 1.1-.8 2.7-2.4 3.8l3.7 2.9c2.3-2.1 3.7-5.2 3.7-9.6z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.2-4.2 1.2-3.2 0-5.9-2.2-6.9-5.1L1.3 17.2C3.3 21.2 7.4 24 12 24z"/><path fill="#FBBC05" d="M5.1 14.3c-.2-.7-.4-1.5-.4-2.3s.1-1.6.4-2.3L1.3 6.8C.5 8.3 0 10.1 0 12s.5 3.7 1.3 5.2l3.8-2.9z"/><path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.4 0 3.3 2.8 1.3 6.8l3.8 2.9c1-2.9 3.7-5 6.9-5z"/></svg>
+      Sign in with Google
+    </button>
+
+    <div class="divider"><span>or</span></div>
+
+    <form id="form-email" class="stack">
+      <label>Email address
+        <input type="email" id="input-email" required autocomplete="email" placeholder="you@company.com">
+      </label>
+      <button type="submit" class="btn btn-primary" id="btn-send-code">Email me a sign-in code</button>
+    </form>
+
+    <form id="form-code" class="stack hidden">
+      <label>6-digit code from your email
+        <input type="text" id="input-code" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" placeholder="123456">
+      </label>
+      <button type="submit" class="btn btn-primary">Verify &amp; sign in</button>
+      <button type="button" class="btn btn-ghost" id="btn-back-email">Use a different email</button>
+    </form>
+
+    <p id="auth-msg" class="msg"></p>
+  </div>
+</section>
+
+<!-- ======================= not an admin ======================= -->
+<section id="view-denied" class="auth-wrap hidden">
+  <div class="auth-card">
+    <img src="assets/app_icon.png" alt="FoodVibe" class="auth-logo">
+    <h1>Not an admin</h1>
+    <p class="muted">You are signed in as <strong id="denied-email"></strong>, but that email
+      is not on the FoodVibe admin list, so the dashboard stays closed.</p>
+    <p class="muted">Ask an existing admin to add your email from the dashboard's Admins page.</p>
+    <button id="btn-denied-logout" class="btn btn-primary">Sign out</button>
+  </div>
+</section>
+
+<!-- ======================= the dashboard ======================= -->
+<div id="view-app" class="hidden">
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/app_icon.png" alt="" class="brand-logo">
+      <span>FoodVibe <span class="accent">Manager</span></span>
+    </div>
+    <div class="topbar-right">
+      <span id="who" class="muted"></span>
+      <button id="btn-refresh" class="btn btn-ghost btn-sm">↻ Refresh</button>
+      <button id="btn-logout" class="btn btn-ghost btn-sm">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="overview" class="tab active">Overview</button>
+    <button data-view="map" class="tab">Live map</button>
+    <button data-view="users" class="tab">Users</button>
+    <button data-view="sellers" class="tab">Sellers</button>
+    <button data-view="reports" class="tab">Reports <span id="reports-badge" class="badge hidden"></span></button>
+    <button data-view="push" class="tab">Push</button>
+    <button data-view="admins" class="tab">Admins</button>
+  </nav>
+
+  <main>
+    <p id="app-msg" class="msg"></p>
+
+    <!-- Overview -->
+    <section id="panel-overview" class="panel">
+      <div class="cards" id="stat-cards"></div>
+      <div class="card-block">
+        <h2>Signups — last 30 days</h2>
+        <canvas id="chart-signups" height="160"></canvas>
+      </div>
+    </section>
+
+    <!-- Live map -->
+    <section id="panel-map" class="panel hidden">
+      <div class="row-between">
+        <p class="muted">🟠 Live sellers now &nbsp;·&nbsp; soft circles = where opted-in users are (areas, never individual buyers)</p>
+        <button id="btn-map-fit" class="btn btn-ghost btn-sm">Fit to sellers</button>
+      </div>
+      <div id="map"></div>
+      <p id="map-empty" class="muted"></p>
+    </section>
+
+    <!-- Users -->
+    <section id="panel-users" class="panel hidden">
+      <div class="table-wrap"><table id="table-users"></table></div>
+    </section>
+
+    <!-- Sellers -->
+    <section id="panel-sellers" class="panel hidden">
+      <div class="table-wrap"><table id="table-sellers"></table></div>
+    </section>
+
+    <!-- Reports -->
+    <section id="panel-reports" class="panel hidden">
+      <div id="reports-list" class="stack"></div>
+    </section>
+
+    <!-- Push composer -->
+    <section id="panel-push" class="panel hidden">
+      <form id="form-push" class="card-block stack">
+        <h2>Send a push notification</h2>
+        <fieldset class="stack">
+          <legend>Audience</legend>
+          <label class="radio"><input type="radio" name="audience" value="all" checked>
+            All opted-in users <span class="muted">(turned on “Food alerts near me”)</span></label>
+          <label class="radio"><input type="radio" name="audience" value="area">
+            One area <span class="muted">(opted-in users whose alert area is inside the radius)</span></label>
+          <div id="area-fields" class="area-fields hidden">
+            <label>Latitude <input type="number" step="any" id="push-lat" placeholder="12.9716"></label>
+            <label>Longitude <input type="number" step="any" id="push-lng" placeholder="77.5946"></label>
+            <label>Radius (km) <input type="number" step="any" min="0.5" id="push-radius" value="3"></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-use-map-centre">Use map centre</button>
+          </div>
+          <label class="radio"><input type="radio" name="audience" value="seller">
+            One seller <span class="muted">(their own phone)</span></label>
+          <div id="seller-field" class="hidden">
+            <select id="push-seller"></select>
+          </div>
+        </fieldset>
+        <label>Title <input type="text" id="push-title" maxlength="80" placeholder="Food near you"></label>
+        <label>Message <textarea id="push-body" rows="3" maxlength="240"
+          placeholder="Fresh fish and homemade meals are selling near you now"></textarea></label>
+        <button type="submit" class="btn btn-primary" id="btn-send-push">Send push</button>
+        <p id="push-result" class="msg"></p>
+      </form>
+    </section>
+
+    <!-- Admins -->
+    <section id="panel-admins" class="panel hidden">
+      <div class="card-block stack">
+        <h2>Admins</h2>
+        <p class="muted">Anyone who signs in with an approved email becomes an admin automatically.
+          Only an existing admin can add or remove emails. The root admin can never be removed,
+          and neither can the last remaining admin.</p>
+        <div class="table-wrap"><table id="table-admins"></table></div>
+        <form id="form-add-admin" class="row">
+          <input type="email" id="input-new-admin" required placeholder="new.admin@company.com">
+          <button type="submit" class="btn btn-primary">Add admin</button>
+        </form>
+        <p id="admins-msg" class="msg"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot muted">Made with love ❤️ to support small business</footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
